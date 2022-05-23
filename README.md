@@ -5,13 +5,13 @@
 * 使用[@squoosh/lib](https://github.com/GoogleChromeLabs/squoosh/tree/dev/libsquoosh)压缩图片，所有处理在本地执行，[详见](https://github.com/GoogleChromeLabs/squoosh#privacy)
 * 使用图片md5进行重命名
 
-![](/images/1.png)
+![](https://raw.githubusercontent.com/JolyneAnasui/picgo-plugin-squoosh/main/images/1.png)
 
 ## 配置
 
 * 初次使用前请进行配置
 
-  ![](/images/2.png)
+  ![](https://raw.githubusercontent.com/JolyneAnasui/picgo-plugin-squoosh/main/images/2.png)
 
 * `开`表示压缩相应扩展名的图片，反则反之
 

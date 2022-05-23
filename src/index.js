@@ -38,6 +38,8 @@ const handle = async (ctx) => {
   ctx.log.info('**** squoosh begin here ****')
   const userConfig = ctx.getConfig('picgo-plugin-squoosh');
   if (!userConfig) throw new Error('picgo-plugin-squoosh config not found');
+  const settings = ctx.getConfig('settings');
+  if (settings.rename || settings.autoRename) throw new Error('rename method conflict');
   
   let imagePool = new ImagePool();
   let output = ctx.output;
@@ -45,8 +47,10 @@ const handle = async (ctx) => {
     for (let i in output) {
       if (userConfig[output[i].extname]) {
         let t0 = new Date();
-        let image = imagePool.ingestImage(output[i].buffer.buffer);
-        let originSize = Math.round((await image.decoded).size / 1024);
+        let b = output[i].buffer;
+        let ab = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
+        let image = imagePool.ingestImage(ab);
+        let originSize = Math.round(b.byteLength / 1024);
         ctx.log.info(`Compressing ${output[i].fileName} ${originSize} kb`);
         
         await image.encode(DefaultEncodeOptions[output[i].extname]);
