@@ -36,47 +36,57 @@ const DefaultEncodeOptions = Object.fromEntries(
 
 const handle = async (ctx) => {
   ctx.log.info('**** squoosh begin here ****')
+  let t0 = new Date();
+
   const userConfig = ctx.getConfig('picgo-plugin-squoosh');
   if (!userConfig) throw new Error('picgo-plugin-squoosh config not found');
   const settings = ctx.getConfig('settings');
-  if (settings.rename || settings.autoRename) throw new Error('rename method conflict');
+  if (userConfig['md5-rename'] && (settings.rename || settings.autoRename)) throw new Error('rename method conflict');
   
   let imagePool = new ImagePool();
-  let output = ctx.output;
-  try {
-    for (let i in output) {
-      if (userConfig[output[i].extname]) {
-        let t0 = new Date();
-        let b = output[i].buffer;
+
+  const jobs = ctx.output.map(async outputi => {
+    try {
+      if (userConfig[outputi.extname]) {
+        let t = new Date();
+        let b = outputi.buffer;
         let ab = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength);
         let image = imagePool.ingestImage(ab);
         let originSize = Math.round(b.byteLength / 1024);
-        ctx.log.info(`Compressing ${output[i].fileName} ${originSize} kb`);
+        ctx.log.info(`Compressing ${outputi.fileName} ${originSize} kb`);
         
-        await image.encode(DefaultEncodeOptions[output[i].extname]);
+        await image.encode(DefaultEncodeOptions[outputi.extname]);
         let encoded = await Object.values(image.encodedWith)[0];
-        output[i].buffer = Buffer.from(encoded.binary);
+        outputi.buffer = Buffer.from(encoded.binary);
         
         let newSize = Math.round(encoded.size / 1024);
         let ratio = Math.round(newSize / originSize * 100);
-        let t = new Date().getTime() - t0.getTime();
-        ctx.log.success(`${output[i].fileName} ${newSize} kb ${ratio}% ${t}ms`);
-      }
+        ctx.log.success(`Finish ${outputi.fileName} ${newSize} kb ${ratio}% ${new Date().getTime() - t.getTime()} ms`);
+      }// else throw new Error('extname debug error');
       if (userConfig['md5-rename']) {
         let hash = crypto.createHash('md5');
-        hash.update(output[i].buffer);
-        let originName = output[i].fileName;
-        output[i].fileName = hash.digest('hex') + output[i].extname;
-        ctx.log.info(`${originName} -> ${output[i].fileName}`);
+        hash.update(outputi.buffer);
+        let originName = outputi.fileName;
+        outputi.fileName = hash.digest('hex') + outputi.extname;
+        ctx.log.info(`${originName} -> ${outputi.fileName}`);
       }
+      return outputi;
+    } catch (err) {
+      ctx.emit('notification', {
+        title: `${outputi.fileName} compression error`,
+        body: err
+      });
+      ctx.log.error(`${outputi.fileName} compression error`);
+      ctx.log.error(err);
     }
-  } catch(err) {
-    ctx.log.error(err);
-  }
+  });
+  
+  ctx.output = await Promise.all(jobs);
+  ctx.output = ctx.output.filter(Boolean);
   imagePool.close();
   
-  ctx.log.info('**** squoosh end here ****')
-  return ctx
+  ctx.log.info(`**** squoosh end here ${new Date().getTime() - t0.getTime()} ms ****`)
+  return ctx;
 }
 
 module.exports = (ctx) => {

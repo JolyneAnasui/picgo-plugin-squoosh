@@ -8,4 +8,5 @@ tslint.json
 src/
 .travis.yml
 test.png
+test2.png
 images/
